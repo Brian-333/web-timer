@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#efeae2">
+  <title>Countdown</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%231c1714'/%3E%3Ccircle cx='16' cy='16' r='9' fill='none' stroke='%23f3efe6' stroke-width='2'/%3E%3Cpath d='M16 10v6l4 2' fill='none' stroke='%23e8a04a' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E">
+  <style>
+    :root {
+      --bg: #efeae2;
+      --ink: #1c1714;
+      --muted: #6d645c;
+      --line: rgba(28, 23, 20, 0.14);
+      --card: rgba(255, 252, 247, 0.72);
+      --green: #1d6b4a;
+      --green-deep: #145538;
+      --amber: #b45309;
+      --amber-deep: #8a3d06;
+      --red: #9f1239;
+      --track: rgba(28, 23, 20, 0.1);
+      --shadow: 0 24px 60px rgba(48, 32, 16, 0.08);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      height: 100%;
+    }
+
+    body {
+      font-family: "Avenir Next", "Segoe UI", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(900px 480px at 50% -8%, #fffaf3 0%, transparent 70%),
+        var(--bg);
+      transition: background-color 0.45s ease;
+    }
+
+    body.is-warning {
+      --bg: #f6e4d2;
+      background:
+        radial-gradient(900px 480px at 50% -8%, #fff6ec 0%, transparent 70%),
+        var(--bg);
+    }
+
+    body.is-done {
+      --bg: #f6e2de;
+      background:
+        radial-gradient(900px 480px at 50% -8%, #fff5f3 0%, transparent 70%),
+        var(--bg);
+    }
+
+    .wrap {
+      width: min(640px, calc(100% - 32px));
+      height: 100%;
+      margin: 0 auto;
+      padding: 16px 0 18px;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 16px;
+      margin-bottom: 8px;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: baseline;
+      gap: 18px;
+    }
+
+    .mark {
+      margin: 0;
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .ghost {
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      font: inherit;
+      font-size: 0.85rem;
+      cursor: pointer;
+      padding: 6px 0;
+    }
+
+    .ghost:hover { color: var(--ink); }
+
+    .stage {
+      flex: 1 1 auto;
+      min-height: 180px;
+      display: grid;
+      place-items: center;
+      container-type: size;
+    }
+
+    .face {
+      position: relative;
+      width: min(100cqw, 100cqh, 420px);
+      aspect-ratio: 1;
+      container-type: inline-size;
+    }
+
+    svg {
+      width: 100%;
+      height: 100%;
+      transform: rotate(-90deg);
+    }
+
+    circle {
+      fill: none;
+      stroke-width: 4;
+    }
+
+    .track { stroke: var(--track); }
+
+    .progress {
+      stroke: var(--green);
+      stroke-linecap: round;
+      transition: stroke 0.35s ease;
+    }
+
+    body.is-warning .progress { stroke: var(--amber); }
+    body.is-done .progress { stroke: var(--red); }
+
+    .readout {
+      position: absolute;
+      inset: 14%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+    }
+
+    .status {
+      margin: 0 0 6px;
+      min-height: 1.4em;
+      font-size: clamp(0.85rem, 4.2cqw, 1.7rem);
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    body.is-warning .status {
+      color: var(--amber-deep);
+      letter-spacing: 0.06em;
+    }
+
+    body.is-done .status { color: var(--red); }
+
+    .digits {
+      margin: 0;
+      font-size: clamp(2.6rem, 28cqw, 14rem);
+      font-weight: 600;
+      letter-spacing: -0.045em;
+      line-height: 0.9;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .digits.long {
+      font-size: clamp(2rem, 20cqw, 9rem);
+    }
+
+    body.is-warning .digits { color: var(--amber-deep); }
+    body.is-done .digits { color: var(--red); }
+
+    .unit-label {
+      margin: 10px 0 0;
+      color: var(--muted);
+      font-size: clamp(0.75rem, 3.4cqw, 1.15rem);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    body.settings-hidden .wrap {
+      width: min(960px, calc(100% - 32px));
+    }
+
+    body.settings-hidden .face {
+      width: min(100cqw, 100cqh, 92vmin);
+    }
+
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      box-shadow: var(--shadow);
+      padding: 18px;
+    }
+
+    .presets {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    button, input {
+      font: inherit;
+    }
+
+    .preset, .set-btn, .transport button, .test {
+      border-radius: 999px;
+      cursor: pointer;
+      border: 1px solid var(--line);
+      background: #fffdf9;
+      color: var(--ink);
+      min-height: 48px;
+      padding: 0 16px;
+    }
+
+    .preset {
+      font-size: 1.05rem;
+      font-weight: 600;
+    }
+
+    .preset[aria-pressed="true"] {
+      background: var(--ink);
+      color: #f6f1ea;
+      border-color: var(--ink);
+    }
+
+    .preset:hover, .set-btn:hover, .transport button:hover, .test:hover {
+      border-color: rgba(28, 23, 20, 0.35);
+    }
+
+    .custom {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: end;
+      margin-top: 14px;
+    }
+
+    label {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      flex: 1 1 120px;
+    }
+
+    input[type="number"] {
+      width: 100%;
+      min-height: 48px;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      background: #fffdf9;
+      color: var(--ink);
+      padding: 0 12px;
+      font-size: 1.15rem;
+      font-variant-numeric: tabular-nums;
+    }
+
+    input:focus, button:focus-visible {
+      outline: 2px solid var(--green);
+      outline-offset: 2px;
+    }
+
+    .set-btn {
+      flex: 1 1 140px;
+      font-weight: 600;
+    }
+
+    .error {
+      min-height: 1.25em;
+      margin: 8px 2px 0;
+      color: var(--red);
+      font-size: 0.92rem;
+    }
+
+    .transport {
+      display: grid;
+      grid-template-columns: 1.4fr 1fr 1fr;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    #start {
+      background: var(--green);
+      color: #f4fff8;
+      border-color: var(--green-deep);
+      font-weight: 700;
+      font-size: 1.05rem;
+    }
+
+    #start:hover:not(:disabled) { background: var(--green-deep); }
+
+    button:disabled {
+      opacity: 0.38;
+      cursor: not-allowed;
+    }
+
+    .sound-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px 16px;
+      margin-top: 14px;
+    }
+
+    .check {
+      flex-direction: row;
+      align-items: center;
+      gap: 8px;
+      letter-spacing: 0.04em;
+      text-transform: none;
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--ink);
+      flex: 1 1 auto;
+    }
+
+    .check input {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--green);
+    }
+
+    .test {
+      min-height: 40px;
+      padding: 0 14px;
+    }
+
+    .hint {
+      margin: 10px 2px 0;
+      color: var(--muted);
+      font-size: 0.9rem;
+      line-height: 1.45;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      body, .progress { transition: none; }
+    }
+
+    @media (max-width: 340px) {
+      .transport { grid-template-columns: 1fr; }
+    }
+
+    @media (max-height: 640px) {
+      html, body { height: auto; }
+      .wrap { height: auto; }
+      .stage { container-type: normal; min-height: 0; }
+      .face { width: min(72vw, 300px); }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <header>
+      <p class="mark">Countdown</p>
+      <div class="header-actions">
+        <button class="ghost" id="settings-toggle" type="button" aria-controls="settings" aria-expanded="true">Hide settings</button>
+        <button class="ghost" id="fullscreen" type="button">Full screen</button>
+      </div>
+    </header>
+
+    <div class="stage">
+    <div class="face">
+      <svg viewBox="0 0 100 100" aria-hidden="true">
+        <circle class="track" cx="50" cy="50" r="46"></circle>
+        <circle class="progress" id="progress" cx="50" cy="50" r="46"></circle>
+      </svg>
+      <div class="readout">
+        <p class="status" id="status" aria-live="assertive">Ready</p>
+        <p class="digits" id="digits" role="timer" aria-atomic="true">35:00</p>
+        <p class="unit-label" id="unit-label">minutes : seconds</p>
+      </div>
+    </div>
+    </div>
+
+    <section class="panel" id="settings" aria-label="Settings">
+      <div class="presets" role="group" aria-label="Presets">
+        <button class="preset" type="button" data-minutes="35" aria-pressed="true">35 minutes</button>
+        <button class="preset" type="button" data-minutes="30" aria-pressed="false">30 minutes</button>
+      </div>
+
+      <form class="custom" id="custom-form">
+        <label>
+          Minutes
+          <input id="minutes" type="number" inputmode="numeric" min="0" max="999" value="35" aria-label="Custom minutes">
+        </label>
+        <label>
+          Seconds
+          <input id="seconds" type="number" inputmode="numeric" min="0" max="59" value="0" aria-label="Custom seconds">
+        </label>
+        <button class="set-btn" type="submit">Set custom time</button>
+      </form>
+      <p class="error" id="error" role="alert"></p>
+
+      <div class="transport">
+        <button id="start" type="button">Start</button>
+        <button id="pause" type="button" disabled>Pause</button>
+        <button id="reset" type="button">Reset</button>
+      </div>
+
+      <div class="sound-row">
+        <label class="check">
+          <input id="sound" type="checkbox" checked>
+          Warning sound
+        </label>
+        <button class="test" id="test" type="button">Test sound</button>
+      </div>
+      <p class="hint">A chime plays once, when a timer longer than 5 minutes reaches 5:00. A second chime plays when time is up.</p>
+    </section>
+  </main>
+
+  <script>
+    const FIVE_MS = 5 * 60 * 1000;
+    const RADIUS = 46;
+    const CIRC = 2 * Math.PI * RADIUS;
+
+    const digitsEl = document.getElementById("digits");
+    const statusEl = document.getElementById("status");
+    const unitEl = document.getElementById("unit-label");
+    const progressEl = document.getElementById("progress");
+    const errorEl = document.getElementById("error");
+    const startBtn = document.getElementById("start");
+    const pauseBtn = document.getElementById("pause");
+    const minutesInput = document.getElementById("minutes");
+    const secondsInput = document.getElementById("seconds");
+    const soundInput = document.getElementById("sound");
+    const presetButtons = [...document.querySelectorAll(".preset")];
+
+    const state = {
+      durationMs: 35 * 60 * 1000,
+      remainingMs: 35 * 60 * 1000,
+      running: false,
+      warned: false,
+      finished: false,
+      preset: 35,
+      timerId: null,
+      endAt: 0,
+      audio: null
+    };
+
+    progressEl.style.strokeDasharray = String(CIRC);
+
+    function clamp(n, min, max) {
+      return Math.min(max, Math.max(min, n));
+    }
+
+    function format(ms) {
+      const total = Math.ceil(Math.max(0, ms) / 1000);
+      const hours = Math.floor(total / 3600);
+      const minutes = Math.floor((total % 3600) / 60);
+      const seconds = total % 60;
+      const pad = (n) => String(n).padStart(2, "0");
+      if (hours > 0) return `${hours}:${pad(minutes)}:${pad(seconds)}`;
+      return `${pad(minutes)}:${pad(seconds)}`;
+    }
+
+    function unlockAudio() {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return null;
+      if (!state.audio) state.audio = new Ctx();
+      if (state.audio.state === "suspended") state.audio.resume();
+      return state.audio;
+    }
+
+    function tone(ctx, freq, start, duration, type, gainValue) {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, start);
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.exponentialRampToValueAtTime(gainValue, start + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(start);
+      osc.stop(start + duration + 0.02);
+    }
+
+    function playWarning() {
+      if (!soundInput.checked) return;
+      const ctx = unlockAudio();
+      if (!ctx) return;
+      const start = ctx.currentTime + 0.02;
+      [0, 0.62].forEach((offset) => {
+        tone(ctx, 523.25, start + offset, 0.18, "sine", 0.12);
+        tone(ctx, 1046.5, start + offset, 0.24, "sine", 0.2);
+        tone(ctx, 1318.51, start + offset + 0.16, 0.36, "sine", 0.16);
+      });
+    }
+
+    function playDone() {
+      if (!soundInput.checked) return;
+      const ctx = unlockAudio();
+      if (!ctx) return;
+      const start = ctx.currentTime + 0.02;
+      tone(ctx, 392, start, 0.22, "triangle", 0.18);
+      tone(ctx, 523.25, start + 0.24, 0.22, "triangle", 0.18);
+      tone(ctx, 659.25, start + 0.48, 0.22, "triangle", 0.2);
+      tone(ctx, 783.99, start + 0.72, 0.7, "triangle", 0.2);
+    }
+
+    function stopTicking() {
+      if (state.timerId !== null) {
+        clearInterval(state.timerId);
+        state.timerId = null;
+      }
+    }
+
+    function maybeWarn() {
+      if (state.warned) return;
+      if (state.durationMs <= FIVE_MS) return;
+      if (state.remainingMs > FIVE_MS) return;
+      state.warned = true;
+      playWarning();
+    }
+
+    function finish() {
+      state.remainingMs = 0;
+      state.running = false;
+      state.finished = true;
+      stopTicking();
+      playDone();
+      render();
+    }
+
+    function tick() {
+      state.remainingMs = Math.max(0, state.endAt - Date.now());
+      if (state.remainingMs <= 0) {
+        finish();
+        return;
+      }
+      maybeWarn();
+      render();
+    }
+
+    function loadTime(ms, preset) {
+      stopTicking();
+      state.durationMs = ms;
+      state.remainingMs = ms;
+      state.running = false;
+      state.warned = false;
+      state.finished = false;
+      state.preset = preset;
+      const totalSeconds = Math.round(ms / 1000);
+      minutesInput.value = String(Math.floor(totalSeconds / 60));
+      secondsInput.value = String(totalSeconds % 60);
+      errorEl.textContent = "";
+      render();
+    }
+
+    function readCustomMs() {
+      const minutes = clamp(parseInt(minutesInput.value, 10) || 0, 0, 999);
+      const seconds = clamp(parseInt(secondsInput.value, 10) || 0, 0, 59);
+      minutesInput.value = String(minutes);
+      secondsInput.value = String(seconds);
+      return (minutes * 60 + seconds) * 1000;
+    }
+
+    function start() {
+      if (state.running) return;
+      if (state.durationMs <= 0) {
+        errorEl.textContent = "Choose a time longer than zero.";
+        return;
+      }
+      if (state.remainingMs <= 0) {
+        state.remainingMs = state.durationMs;
+        state.finished = false;
+        state.warned = false;
+      }
+      unlockAudio();
+      state.running = true;
+      state.finished = false;
+      state.endAt = Date.now() + state.remainingMs;
+      stopTicking();
+      state.timerId = setInterval(tick, 100);
+      errorEl.textContent = "";
+      tick();
+    }
+
+    function pause() {
+      if (!state.running) return;
+      state.remainingMs = Math.max(0, state.endAt - Date.now());
+      state.running = false;
+      stopTicking();
+      render();
+    }
+
+    function reset() {
+      loadTime(state.durationMs, state.preset);
+    }
+
+    function render() {
+      const text = format(state.remainingMs);
+      const warning = !state.finished && state.durationMs > FIVE_MS && state.remainingMs <= FIVE_MS && state.remainingMs > 0;
+      let status = "Ready";
+      if (state.finished) status = "Time's up";
+      else if (warning) status = "5 minutes remaining";
+      else if (state.running) status = "Running";
+      else if (state.remainingMs !== state.durationMs) status = "Paused";
+      else if (state.preset === "custom") status = "Custom time";
+      else status = `${state.preset} minutes`;
+
+      digitsEl.textContent = text;
+      digitsEl.classList.toggle("long", text.length > 5);
+      digitsEl.setAttribute("aria-label", `${text} remaining`);
+      if (statusEl.textContent !== status) statusEl.textContent = status;
+      unitEl.textContent = text.length > 5 ? "hours : minutes : seconds" : "minutes : seconds";
+
+      const ratio = state.durationMs === 0 ? 0 : state.remainingMs / state.durationMs;
+      progressEl.style.strokeDashoffset = String(CIRC * (1 - ratio));
+
+      document.body.classList.toggle("is-running", state.running);
+      document.body.classList.toggle("is-warning", warning);
+      document.body.classList.toggle("is-done", state.finished);
+
+      if (state.finished) document.title = "Time's up — Countdown";
+      else if (warning) document.title = `5 min left — ${text}`;
+      else if (state.running || state.remainingMs !== state.durationMs) document.title = `${text} — Countdown`;
+      else document.title = "Countdown";
+
+      startBtn.disabled = state.running || state.durationMs <= 0;
+      pauseBtn.disabled = !state.running;
+      startBtn.textContent = state.finished ? "Start again" : (state.remainingMs !== state.durationMs && !state.running ? "Resume" : "Start");
+
+      presetButtons.forEach((button) => {
+        button.setAttribute("aria-pressed", String(Number(button.dataset.minutes) === state.preset));
+      });
+    }
+
+    presetButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        const minutes = Number(button.dataset.minutes);
+        loadTime(minutes * 60 * 1000, minutes);
+      });
+    });
+
+    document.getElementById("custom-form").addEventListener("submit", (event) => {
+      event.preventDefault();
+      const ms = readCustomMs();
+      if (ms <= 0) {
+        errorEl.textContent = "Choose a time longer than zero.";
+        return;
+      }
+      const preset = ms === 35 * 60 * 1000 ? 35 : ms === 30 * 60 * 1000 ? 30 : "custom";
+      loadTime(ms, preset);
+    });
+
+    startBtn.addEventListener("click", start);
+    pauseBtn.addEventListener("click", pause);
+    document.getElementById("reset").addEventListener("click", reset);
+    document.getElementById("test").addEventListener("click", () => {
+      unlockAudio();
+      playWarning();
+    });
+
+    const settingsEl = document.getElementById("settings");
+    const settingsToggle = document.getElementById("settings-toggle");
+
+    function setSettingsHidden(hidden) {
+      settingsEl.hidden = hidden;
+      document.body.classList.toggle("settings-hidden", hidden);
+      settingsToggle.textContent = hidden ? "Show settings" : "Hide settings";
+      settingsToggle.setAttribute("aria-expanded", String(!hidden));
+    }
+
+    settingsToggle.addEventListener("click", () => {
+      setSettingsHidden(!settingsEl.hidden);
+    });
+
+    document.getElementById("fullscreen").addEventListener("click", () => {
+      if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+      else document.exitFullscreen();
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.target.closest("input")) return;
+      if (event.code !== "Space") return;
+      event.preventDefault();
+      if (state.running) pause();
+      else start();
+    });
+
+    render();
+  </script>
+</body>
+</html>
